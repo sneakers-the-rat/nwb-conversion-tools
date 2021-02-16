@@ -10,6 +10,7 @@ from ..basesortingextractorinterface import BaseSortingExtractorInterface
 
 try:
     from lxml import etree as et
+
     HAVE_LXML = True
 except ImportError:
     HAVE_LXML = False
@@ -38,8 +39,8 @@ def get_shank_channels(xml_file_path: str, sort: bool = False):
     """Auxiliary function for retrieving the list of structured shank-only channels."""
     root = get_xml(xml_file_path)
     shank_channels = [
-        [int(channel.text) for channel in group.find('channels')]
-        for group in root.find('spikeDetection').find('channelGroups').findall('group')
+        [int(channel.text) for channel in group.find("channels")]
+        for group in root.find("spikeDetection").find("channelGroups").findall("group")
     ]
 
     if sort:
@@ -62,30 +63,31 @@ class NeuroscopeRecordingInterface(BaseRecordingExtractorInterface):
 
         ecephys_metadata = dict(
             Ecephys=dict(
-                Device=[
-                    dict(
-                        description=session_id + '.xml'
-                    )
-                ],
+                Device=[dict(description=session_id + ".xml")],
                 ElectrodeGroup=[
-                    dict(
-                        name=f'shank{n + 1}',
-                        description=f"shank{n + 1} electrodes"
-                    )
+                    dict(name=f"shank{n + 1}", description=f"shank{n + 1} electrodes")
                     for n, _ in enumerate(shank_channels)
                 ],
                 Electrodes=[
                     dict(
-                        name='shank_electrode_number',
+                        name="shank_electrode_number",
                         description="0-indexed channel within a shank.",
-                        data=[x for channels in shank_channels for x, _ in enumerate(channels)]
+                        data=[
+                            x
+                            for channels in shank_channels
+                            for x, _ in enumerate(channels)
+                        ],
                     ),
                     dict(
-                        name='group_name',
+                        name="group_name",
                         description="The name of the ElectrodeGroup this electrode is a part of.",
-                        data=[f"shank{n + 1}" for n, channels in enumerate(shank_channels) for _ in channels]
-                    )
-                ]
+                        data=[
+                            f"shank{n + 1}"
+                            for n, channels in enumerate(shank_channels)
+                            for _ in channels
+                        ],
+                    ),
+                ],
             )
         )
 
@@ -94,19 +96,22 @@ class NeuroscopeRecordingInterface(BaseRecordingExtractorInterface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.subset_channels = get_shank_channels(
-            xml_file_path=get_xml_file_path(data_file_path=self.source_data['file_path']),
-            sort=True
+            xml_file_path=get_xml_file_path(
+                data_file_path=self.source_data["file_path"]
+            ),
+            sort=True,
         )
 
     def get_metadata(self):
         """Retrieve Ecephys metadata specific to the Neuroscope format."""
         metadata = NeuroscopeRecordingInterface.get_ecephys_metadata(
-            xml_file_path=get_xml_file_path(data_file_path=self.source_data['file_path'])
+            xml_file_path=get_xml_file_path(
+                data_file_path=self.source_data["file_path"]
+            )
         )
-        metadata['Ecephys'].update(
+        metadata["Ecephys"].update(
             ElectricalSeries=dict(
-                name='ElectricalSeries',
-                description="Raw acquisition traces."
+                name="ElectricalSeries", description="Raw acquisition traces."
             )
         )
 
@@ -121,19 +126,22 @@ class NeuroscopeMultiRecordingTimeInterface(BaseRecordingExtractorInterface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.subset_channels = get_shank_channels(
-            xml_file_path=get_xml_file_path(data_file_path=self.source_data['folder_path']),
-            sort=True
+            xml_file_path=get_xml_file_path(
+                data_file_path=self.source_data["folder_path"]
+            ),
+            sort=True,
         )
-        
+
     def get_metadata(self):
         """Retrieve Ecephys metadata specific to the Neuroscope format."""
         metadata = NeuroscopeRecordingInterface.get_ecephys_metadata(
-            xml_file_path=get_xml_file_path(data_file_path=self.source_data['folder_path'])
+            xml_file_path=get_xml_file_path(
+                data_file_path=self.source_data["folder_path"]
+            )
         )
-        metadata['Ecephys'].update(
+        metadata["Ecephys"].update(
             ElectricalSeries=dict(
-                name='ElectricalSeries',
-                description="Raw acquisition traces."
+                name="ElectricalSeries", description="Raw acquisition traces."
             )
         )
 
@@ -148,19 +156,22 @@ class NeuroscopeLFPInterface(BaseLFPExtractorInterface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.subset_channels = get_shank_channels(
-            xml_file_path=get_xml_file_path(data_file_path=self.source_data['file_path']),
-            sort=True
+            xml_file_path=get_xml_file_path(
+                data_file_path=self.source_data["file_path"]
+            ),
+            sort=True,
         )
 
     def get_metadata(self):
         """Retrieve Ecephys metadata specific to the Neuroscope format."""
         metadata = NeuroscopeRecordingInterface.get_ecephys_metadata(
-            xml_file_path=get_xml_file_path(data_file_path=self.source_data['file_path'])
+            xml_file_path=get_xml_file_path(
+                data_file_path=self.source_data["file_path"]
+            )
         )
-        metadata['Ecephys'].update(
+        metadata["Ecephys"].update(
             LFPElectricalSeries=dict(
-                name="LFP",
-                description="Local field potential signal."
+                name="LFP", description="Local field potential signal."
             )
         )
 
@@ -174,7 +185,7 @@ class NeuroscopeSortingInterface(BaseSortingExtractorInterface):
 
     def get_metadata(self):
         """Auto-populates spiking unit metadata."""
-        session_path = Path(self.source_data['folder_path'])
+        session_path = Path(self.source_data["folder_path"])
         session_id = session_path.stem
         metadata = NeuroscopeRecordingInterface.get_ecephys_metadata(
             xml_file_path=str((session_path / f"{session_id}.xml").absolute())

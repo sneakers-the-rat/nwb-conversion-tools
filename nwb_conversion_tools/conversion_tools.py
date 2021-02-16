@@ -3,8 +3,14 @@ from pathlib import Path
 import spikeextractors as se
 
 
-def save_si_object(object_name: str, si_object, output_folder,
-                   cache_raw=False, include_properties=True, include_features=False):
+def save_si_object(
+    object_name: str,
+    si_object,
+    output_folder,
+    cache_raw=False,
+    include_properties=True,
+    include_features=False,
+):
     """
     Save an arbitrary SI object to a temprary location for NWB conversion.
 
@@ -28,31 +34,41 @@ def save_si_object(object_name: str, si_object, output_folder,
 
     if isinstance(si_object, se.RecordingExtractor):
         if not si_object.is_dumpable:
-            cache = se.CacheRecordingExtractor(si_object, save_path=output_folder / "raw.dat")
+            cache = se.CacheRecordingExtractor(
+                si_object, save_path=output_folder / "raw.dat"
+            )
         elif cache_raw:
             # save to json before caching to keep history (in case it's needed)
             json_file = output_folder / f"{object_name}.json"
             si_object.dump_to_json(output_folder / json_file)
-            cache = se.CacheRecordingExtractor(si_object, save_path=output_folder / "raw.dat")
+            cache = se.CacheRecordingExtractor(
+                si_object, save_path=output_folder / "raw.dat"
+            )
         else:
             cache = si_object
 
     elif isinstance(si_object, se.SortingExtractor):
         if not si_object.is_dumpable:
-            cache = se.CacheSortingExtractor(si_object, save_path=output_folder / "sorting.npz")
+            cache = se.CacheSortingExtractor(
+                si_object, save_path=output_folder / "sorting.npz"
+            )
         elif cache_raw:
             # save to json before caching to keep history (in case it's needed)
             json_file = output_folder / f"{object_name}.json"
             si_object.dump_to_json(output_folder / json_file)
-            cache = se.CacheSortingExtractor(si_object, save_path=output_folder / "sorting.npz")
+            cache = se.CacheSortingExtractor(
+                si_object, save_path=output_folder / "sorting.npz"
+            )
         else:
             cache = si_object
     else:
-        raise ValueError("The 'si_object' argument shoulde be a SpikeInterface Extractor!")
+        raise ValueError(
+            "The 'si_object' argument shoulde be a SpikeInterface Extractor!"
+        )
 
     pkl_file = output_folder / f"{object_name}.pkl"
     cache.dump_to_pickle(
         output_folder / pkl_file,
         include_properties=include_properties,
-        include_features=include_features
+        include_features=include_features,
     )

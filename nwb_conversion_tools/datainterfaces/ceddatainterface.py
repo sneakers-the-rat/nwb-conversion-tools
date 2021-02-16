@@ -14,6 +14,5 @@ class CEDRecordingInterface(BaseRecordingExtractorInterface):
     def get_source_schema(cls):
         """Compile input schema for the RecordingExtractor."""
         return get_schema_from_method_signature(
-            class_method=cls.RX.__init__,
-            exclude=['smrx_ch_inds']
+            class_method=cls.RX.__init__, exclude=["smrx_ch_inds"]
         )

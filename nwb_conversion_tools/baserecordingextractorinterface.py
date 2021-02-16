@@ -31,12 +31,16 @@ class BaseRecordingExtractorInterface(BaseDataInterface, ABC):
         metadata_schema = super().get_metadata_schema()
 
         # Initiate Ecephys metadata
-        metadata_schema['properties']['Ecephys'] = dict(
+        metadata_schema["properties"]["Ecephys"] = dict(
             Device=get_schema_from_hdmf_class(Device),
             ElectrodeGroup=get_schema_from_hdmf_class(ElectrodeGroup),
-            ElectricalSeries=get_schema_from_hdmf_class(ElectricalSeries)
+            ElectricalSeries=get_schema_from_hdmf_class(ElectricalSeries),
         )
-        metadata_schema['properties']['Ecephys']['required'] = ['Device', 'ElectrodeGroup', 'ElectricalSeries']
+        metadata_schema["properties"]["Ecephys"]["required"] = [
+            "Device",
+            "ElectrodeGroup",
+            "ElectricalSeries",
+        ]
         fill_defaults(metadata_schema, self.get_metadata())
         return metadata_schema
 
@@ -72,12 +76,13 @@ class BaseRecordingExtractorInterface(BaseDataInterface, ABC):
             kwargs.update(channel_ids=self.subset_channels)
 
         recording_extractor = se.SubRecordingExtractor(
-            self.recording_extractor,
-            **kwargs
+            self.recording_extractor, **kwargs
         )
         return recording_extractor
 
-    def run_conversion(self, nwbfile: NWBFile, metadata: dict = None, stub_test: bool = False):
+    def run_conversion(
+        self, nwbfile: NWBFile, metadata: dict = None, stub_test: bool = False
+    ):
         """
         Primary function for converting recording extractor data to nwb.
 
@@ -93,7 +98,5 @@ class BaseRecordingExtractorInterface(BaseDataInterface, ABC):
         else:
             recording = self.recording_extractor
         se.NwbRecordingExtractor.write_recording(
-            recording=recording,
-            nwbfile=nwbfile,
-            metadata=metadata
+            recording=recording, nwbfile=nwbfile, metadata=metadata
         )
