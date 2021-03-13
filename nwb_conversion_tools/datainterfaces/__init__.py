@@ -5,6 +5,7 @@ from .neuroscopedatainterface import (
     NeuroscopeSortingInterface
 )
 from .spikeglxdatainterface import SpikeGLXRecordingInterface, SpikeGLXLFPInterface
+from .spikegadgetsdatainterface import SpikeGadgetsRecordingInterface
 from .sipickledatainterfaces import (
     SIPickleRecordingExtractorInterface,
     SIPickleSortingExtractorInterface)
@@ -29,6 +30,7 @@ interface_list = [
     NeuroscopeRecordingInterface,
     NeuroscopeSortingInterface,
     SpikeGLXRecordingInterface,
+    SpikeGadgetsRecordingInterface,
     SIPickleRecordingExtractorInterface,
     SIPickleSortingExtractorInterface,
     IntanRecordingInterface,
