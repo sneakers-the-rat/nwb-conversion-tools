@@ -1,8 +1,28 @@
 """Authors: Cody Baker, Alessio Buccino."""
 from pathlib import Path
 import numpy as np
+from typing import Union
+import scipy.io
+import hdf5storage
 
 import spikeextractors as se
+
+PathType = Union[str, Path]
+
+
+def load_mat_file(file_path: PathType):
+    """
+    Load a .mat file regardless of its version.
+
+    Parameters
+    ----------
+    file_path : PathType
+    """
+    try:
+        mat_file = scipy.io.loadmat(file_path)
+    except NotImplementedError:
+        mat_file = hdf5storage.loadmat(file_path)
+    return(mat_file)
 
 
 def check_regular_timestamps(ts):

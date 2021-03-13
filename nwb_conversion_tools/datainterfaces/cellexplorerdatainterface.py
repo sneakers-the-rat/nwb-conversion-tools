@@ -6,6 +6,7 @@ from scipy.io import loadmat
 import numpy as np
 
 from ..basesortingextractorinterface import BaseSortingExtractorInterface
+from ..conversion_tools import load_mat_file
 
 
 class CellExplorerSortingInterface(BaseSortingExtractorInterface):
@@ -23,7 +24,7 @@ class CellExplorerSortingInterface(BaseSortingExtractorInterface):
         unit_properties = []
         cell_filepath = session_path / f"{session_id}.spikes.cellinfo.mat"
         if cell_filepath.is_file():
-            cell_info = loadmat(cell_filepath).get('spikes', np.empty(0))
+            cell_info = load_mat_file(cell_filepath).get('spikes', np.empty(0))
             cell_info_fields = cell_info.dtype.names
             if 'cluID' in cell_info_fields:
                 unit_properties.append(
@@ -54,7 +55,7 @@ class CellExplorerSortingInterface(BaseSortingExtractorInterface):
         celltype_mapping = {'pE': "excitatory", 'pI': "inhibitory", '[]': 'unclassified'}
         celltype_filepath = session_path / f"{session_id}.CellClass.cellinfo.mat"
         if celltype_filepath.is_file():
-            celltype_info = loadmat(celltype_filepath).get('CellClass', np.empty(0))
+            celltype_info = load_mat_file(celltype_filepath).get('CellClass', np.empty(0))
             if 'label' in celltype_info.dtype.names:
                 unit_properties.append(
                     dict(
