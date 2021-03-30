@@ -8,6 +8,17 @@ from nwb_conversion_tools.json_schema_utils import (
 
 class BaseDataInterface(ABC):
 
+    device_name = '' # type: str
+    """
+    A human-readable device name used by :func:`.interfaces.list_interfaces` to
+    identify it. Should be overridden by any interface class that's a "leaf"
+    intended to be instantiated by itself (metaclasses should leave blank).
+    
+    Names can be redundant, but should be unique within an interface type. ie.
+    there should only one device with device_name per 'recording' or 'segmentation'
+    types.
+    """
+
     @classmethod
     def get_source_schema(cls):
         return get_base_schema()

@@ -13,6 +13,8 @@ PathType = Union[str, Path, None]
 class SpikeGLXRecordingInterface(BaseRecordingExtractorInterface):
     """Primary data interface class for converting the high-pass (ap) SpikeGLX format."""
 
+    device_name = 'glx'
+
     RX = SpikeGLXRecordingExtractor
 
     @classmethod

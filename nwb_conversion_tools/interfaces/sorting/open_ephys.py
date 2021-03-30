@@ -10,6 +10,8 @@ from nwb_conversion_tools.json_schema_utils import get_schema_from_method_signat
 class OpenEphysSortingExtractorInterface(BaseSortingExtractorInterface):
     """Primary data interface class for converting OpenEphys spiking data."""
 
+    device_name = 'open_ephys'
+
     SX = se.OpenEphysSortingExtractor
 
     @classmethod

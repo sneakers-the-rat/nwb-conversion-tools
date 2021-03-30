@@ -14,6 +14,8 @@ PathType = Union[str, Path, None]
 class OpenEphysRecordingExtractorInterface(BaseRecordingExtractorInterface):
     """Primary data interface class for converting a OpenEphysRecordingExtractor."""
 
+    device_name = 'open_ephys'
+
     RX = se.OpenEphysRecordingExtractor
 
     @classmethod

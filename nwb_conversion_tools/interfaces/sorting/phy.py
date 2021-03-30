@@ -7,4 +7,6 @@ from nwb_conversion_tools.interfaces.sorting.base_sorting import BaseSortingExtr
 class PhySortingInterface(BaseSortingExtractorInterface):
     """Primary data interface class for converting a PhySortingExtractor."""
 
+    device_name = 'phy'
+
     SX = se.PhySortingExtractor

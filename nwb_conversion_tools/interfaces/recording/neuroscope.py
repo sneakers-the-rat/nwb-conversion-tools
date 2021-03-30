@@ -60,6 +60,8 @@ def get_shank_channels(xml_file_path: str, sort: bool = False):
 class NeuroscopeRecordingInterface(BaseRecordingExtractorInterface):
     """Primary data interface class for converting a NeuroscopeRecordingExtractor."""
 
+    device_name = 'neuroscope'
+
     RX = se.NeuroscopeRecordingExtractor
 
     @staticmethod
@@ -124,6 +126,8 @@ class NeuroscopeRecordingInterface(BaseRecordingExtractorInterface):
 
 class NeuroscopeMultiRecordingTimeInterface(BaseRecordingExtractorInterface):
     """Primary data interface class for converting a NeuroscopeMultiRecordingTimeExtractor."""
+
+    device_name = 'neuroscope_multi'
 
     RX = se.NeuroscopeMultiRecordingTimeExtractor
 

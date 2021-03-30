@@ -11,6 +11,8 @@ from nwb_conversion_tools.interfaces.sorting.base_sorting import BaseSortingExtr
 class CellExplorerSortingInterface(BaseSortingExtractorInterface):
     """Primary data interface class for converting Cell Explorer spiking data."""
 
+    device_name = 'cell_explorer'
+
     SX = se.CellExplorerSortingExtractor
 
     def get_metadata(self):

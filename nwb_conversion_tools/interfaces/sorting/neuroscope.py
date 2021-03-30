@@ -9,6 +9,8 @@ from nwb_conversion_tools.interfaces.sorting.base_sorting import BaseSortingExtr
 class NeuroscopeSortingInterface(BaseSortingExtractorInterface):
     """Primary data interface class for converting a NeuroscopeSortingExtractor."""
 
+    device_name = 'neuroscope'
+
     SX = se.NeuroscopeMultiSortingExtractor
 
     def get_metadata(self):

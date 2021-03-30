@@ -7,6 +7,8 @@ from nwb_conversion_tools.interfaces.recording.neuroscope import NeuroscopeRecor
 class NeuroscopeLFPInterface(BaseLFPExtractorInterface):
     """Primary data interface class for converting Neuroscope LFP data."""
 
+    device_name = 'neuroscope'
+
     RX = se.NeuroscopeRecordingExtractor
 
     def __init__(self, *args, **kwargs):

@@ -7,6 +7,8 @@ from nwb_conversion_tools.json_schema_utils import get_base_schema
 class SIPickleSortingExtractorInterface(BaseSortingExtractorInterface):
     """Primary interface for reading and converting SpikeInterface objects through Pickle files."""
 
+    device_name = 'spike_interface'
+
     @classmethod
     def get_source_schema(cls):
         """Return partial json schema for expected input arguments."""

@@ -19,6 +19,8 @@ class BlackrockRecordingExtractorInterface(BaseRecordingExtractorInterface):
 
     RX = se.BlackrockRecordingExtractor
 
+    device_name = 'blackrock'
+
     @classmethod
     def get_source_schema(cls):
         """Compile input schema for the RecordingExtractor."""

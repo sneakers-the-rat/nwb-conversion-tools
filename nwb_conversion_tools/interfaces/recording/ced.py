@@ -8,6 +8,8 @@ from nwb_conversion_tools.json_schema_utils import get_schema_from_method_signat
 class CEDRecordingInterface(BaseRecordingExtractorInterface):
     """Primary data interface class for converting a CEDRecordingExtractor."""
 
+    device_name = 'ced'
+
     RX = se.CEDRecordingExtractor
 
     @classmethod

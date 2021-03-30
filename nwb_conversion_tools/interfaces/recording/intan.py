@@ -13,6 +13,8 @@ INSTALL_MESSAGE = "Please install pyintan to use this extractor!"
 class IntanRecordingInterface(BaseRecordingExtractorInterface):
     """Primary data interface class for converting a IntanRecordingExtractor."""
 
+    device_name = 'intan'
+
     RX = se.IntanRecordingExtractor
 
     def __init__(self, *args, **kwargs):
