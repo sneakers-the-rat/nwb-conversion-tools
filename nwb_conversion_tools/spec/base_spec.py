@@ -2,21 +2,9 @@ from abc import abstractmethod, ABC
 import typing
 import gc
 
-def iter_spec(**kwargs):
-    """
-    Yield dictionaries of the resolved metadata values for a dict of spec objects
-    Parameters
-    ----------
-    kwargs :
-
-    Returns
-    -------
-
-    """
-    pass
 
 class BaseSpec(ABC):
-    def __init__(self, retype: typing.Optional[typing.Callable] = None):
+    def __init__(self, retype: typing.Optional[typing.Callable] = None, *args, **kwargs):
         """
 
         Parameters
@@ -50,3 +38,5 @@ class BaseSpec(ABC):
         -------
         tuple of strings
         """
+
+

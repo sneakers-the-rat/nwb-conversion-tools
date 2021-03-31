@@ -4,6 +4,7 @@ from pathlib import Path
 import typing
 from typing import Optional
 import warnings
+from pprint import pformat
 
 from pynwb import NWBHDF5IO, NWBFile
 from pynwb.file import Subject
@@ -14,7 +15,7 @@ from .json_schema_utils import dict_deep_update, get_base_schema, fill_defaults,
     unroot_schema
 
 from nwb_conversion_tools.interfaces import BaseDataInterface, list_interfaces
-from nwb_conversion_tools.spec import BaseSpec, iter_spec
+from nwb_conversion_tools.spec import BaseSpec, parse_nested_spec
 
 
 class NWBConverter:
@@ -44,7 +45,8 @@ class NWBConverter:
         # init private attributes
         self._metadata = None
         self._dataset_schema = {}
-        self._spec = {}
+        self._spec = {} # type: typing.Dict[tuple, typing.Tuple[BaseSpec, ...]]
+        self._metadata_spec = {}
 
         # preserve old behavior on init
         if source_data is not None:
@@ -60,13 +62,14 @@ class NWBConverter:
 
     def add_interface(self, interface_type:Optional[str] = None,
                       device_name: Optional[str] = None,
-                      interface_class: Optional[BaseDataInterface] = None,
-                      **kwargs):
+                      *args):
         """
         Add a recording interface
 
         Specify interface either with an interface type and name, or else give the class itself as
         ``interface_class``. If both are present, use the class.
+
+        Everything afterwards
 
         Parameters
         ----------
@@ -74,40 +77,58 @@ class NWBConverter:
             Type of interface, like 'recording' -- a name of a package in :mod:`~nwb_conversion_tools.interfaces`
         device_name : str
             Name of specific interface, matching the interfaces :attr:`~.interfaces.BaseDataInterface.device_name`
-        interface_class : BaseDataInterface
-            The specific interface class to use. If present, used instead of interface_type and device_name
         kwargs :
             kwargs passed to data interface.
         """
         # --------------------------------------------------
         # parse args to get interface
         # --------------------------------------------------
-        # if we get the class itself, use it
-        if interface_class is not None:
-            if issubclass(interface_class, BaseDataInterface):
-                interface = interface_class
-            else:
-                raise ValueError(f"Interface class passed does not inherit from BaseDataInterface! Got {interface_class}")
 
         # otherwise we try to get it programmatically
-        elif interface_type is not None and device_name is not None:
+        if interface_type is not None and device_name is not None:
             interface = list_interfaces(interface_type, device_name)
-
         else:
-            raise ValueError(("Need either interface type and device name, or else the interface class.",
-                              f"got interface_type: {interface_type}, device_name: {device_name}, interface_class: {interface_class}"))
+            raise ValueError(("Need both interface type and device name",
+                              f"got interface_type: {interface_type}, device_name: {device_name}"))
 
-        # add to metadata dict
-        self._metadata = dict_deep_update(self.metadata, interface.get_metadata())
+        # get source schema for device to make sure we've specified all the required props
+        source_schema = interface.get_source_schema()
+        required = source_schema['required']
 
-        self.data_interface_objects[type(interface).__name__] = interface(**kwargs)
+        # if length of args is zero, assume user is asking for advice on what the heck to do :)
+        if len(args) == 0:
+            header_str = f'Source Schema for {type(interface).__name__}'
+            divider_bar = '-'*len(header_str)
+            print('\n'.join((header_str, divider_bar, pformat(source_schema), divider_bar)))
+            return
 
-    def add_metadata(self, key:str, spec:typing.Union[BaseSpec, str]):
+        # otherwise ensure passed specs parameterize all required args
+        specs = (arg for arg in args if issubclass(arg, BaseSpec))
+        specified = []
+        for spec in specs:
+            specified.extend(spec.specifies)
+
+        # check that we have everything with sets
+        if len(set(required) - set(specified)) != 0:
+            raise ValueError(f"Not all required parameters are specified,\nRequired:{required}\nSpecified:{specified}")
+
+        self.data_interface_classes[type(interface).__name__] = interface
+        spec_key = (interface_type, device_name)
+        if spec_key not in self._spec.keys():
+            self._spec[spec_key] = [specs]
+        else:
+            self._spec[spec_key].append(specs)
+
+    def add_metadata(self,
+        key:typing.Union[str, typing.Tuple[str,...]],
+        spec:typing.Union[BaseSpec, str]):
         """
 
         Parameters
         ----------
-        key :
+        key : str, tuple
+            Either a string representing a "top-level" metadata property, or a tuple of nested metadata
+            properties like ('NWBFile', 'experimenter')
         spec : BaseSpec, str
             if str, assumes static metadata (unchanged across multiple sessions/experiments)
             otherwise, use spec to resolve
@@ -116,6 +137,24 @@ class NWBConverter:
         -------
 
         """
+        if isinstance(key, str):
+            self._metadata_spec[key] = spec
+        elif isinstance(key, (tuple, list)) and len(key) == 1:
+            self._metadata_spec[key[0]] = spec
+        else:
+            # add spec to nested dict
+            sub_dict = self._metadata_spec
+            for i, sub_key in enumerate(key):
+                if i < len(key)-1:
+                    if sub_key not in sub_dict.keys():
+                        sub_dict[sub_key] = {}
+                    sub_dict = sub_dict[sub_key]
+                else:
+                    sub_dict[sub_key] = spec
+
+
+
+
 
     # --------------------------------------------------
     # properties
@@ -202,11 +241,12 @@ class NWBConverter:
 
     def run_conversion(
             self,
-            metadata: dict,
+            metadata: Optional[dict] = None,
             nwbfile_path: Optional[str] = None,
             overwrite: Optional[bool] = False,
             nwbfile: Optional[NWBFile] = None,
-            conversion_options: Optional[dict] = None
+            conversion_options: Optional[dict] = None,
+            base_dir: Optional[Path] = None
     ):
         """
         Run the NWB conversion over all the instantiated data interfaces.
@@ -235,6 +275,29 @@ class NWBConverter:
             conversion_options = dict()
         else:
             validate(instance=conversion_options, schema=self.get_conversion_options_schema())
+
+        if base_dir is not None:
+            base_dir = Path(base_dir)
+        else:
+            base_dir = self.base_dir
+
+        # instantiate all our devices with their specs!
+        for (interface_type, device_name), interface_spec in self._spec.items():
+            device_class = list_interfaces(interface_type, device_name)
+            device_kwargs = {}
+            for a_spec in interface_spec:
+                device_kwargs.update(a_spec.parse(base_dir))
+
+            self.data_interface_objects[type(device_class).__name__] = device_class(**device_kwargs)
+
+        # parse metadata
+        if metadata is None:
+            metadata = self.metadata
+
+        # get metadata from all devices and stuff
+        metadata = dict_deep_update(metadata, self.get_metadata())
+        # then from parsing our metadata spec
+        metadata = dict_deep_update(metadata, parse_nested_spec(self._metadata_spec, base_dir))
 
         if nwbfile_path is not None:
 

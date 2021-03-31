@@ -9,38 +9,6 @@ from pathlib import Path as plPath
 from threading import Lock
 import parse
 import glob
-#
-# _BASE_PATH = plPath()
-# _BASE_PATH_LOCK = Lock()
-#
-# def base_path(path: typing.Optional[plPath] = None) -> plPath:
-#     """
-#     get/set the base path used by Path objects.
-#
-#     If none has been set, the current directory is used
-#     (literally ``pathlib.Path()``)
-#
-#     Parameters
-#     ----------
-#     path : :class:`pathlib.Path`
-#         the base path. if ``None``, get base path
-#
-#     Returns
-#     -------
-#     a copy of :class:`pathlib.Path`
-#     """
-#     global _BASE_PATH_LOCK
-#     global _BASE_PATH
-#
-#     with _BASE_PATH_LOCK:
-#         if path is None:
-#             return copy(_BASE_PATH)
-#         else:
-#             _BASE_PATH = plPath(path).absolute()
-#
-
-
-
 
 class Path(BaseSpec):
     """
