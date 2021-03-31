@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 import typing
+import gc
 
 def iter_spec(**kwargs):
     """
@@ -26,7 +27,7 @@ class BaseSpec(ABC):
         self.retype = retype
 
     @abstractmethod
-    def parse(self, parsy=None) -> dict:
+    def parse(self, base_path=None) -> dict:
         """
         All Specs should instantiate a parse method that returns a dictionary of
         metadata variable keys and values. eg::
@@ -34,6 +35,9 @@ class BaseSpec(ABC):
             >>> BaseSpec().parse()
             { 'subject_id': 'jonny' }
 
+        The typical use is to be able to specify some metadata values
+        that are contained ***somewhere*** relative to a directory of data, so
+        the passed argument should typically be that directory.
         """
 
     @property

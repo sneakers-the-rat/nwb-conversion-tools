@@ -248,3 +248,72 @@ def _recursive_import(module_name:str) -> typing.List[str]:
             loaded_modules.append(name)
 
     return loaded_modules
+
+def _gather_list_of_dicts(a_list:list) -> typing.Dict[str, list]:
+    """
+    Gather a list of dictionaries like::
+
+        [{'key1':'val1'}, {'key1':'val2'}, {'key1':'val3'}]
+
+    to a dict of lists like:
+
+        {'key1': ['val1', 'val2', 'val3']}
+    """
+    if len(a_list) == 1:
+        # if there's only one dict in here just return it lmao
+        return a_list[0]
+
+    out_dict = {}
+    for inner_dict in a_list:
+        for inner_key, inner_value in inner_dict.items():
+            if inner_key not in out_dict.keys():
+                out_dict[inner_key] = [inner_value]
+            else:
+                out_dict[inner_key].append(inner_value)
+
+    return out_dict
+
+def _dedupe_list_of_dicts(a_list, raise_on_dupes=True):
+    """
+    Deduplicate a list of dicts.
+
+    Optionally raise an exception if duplicates are found, otherwise
+    call ``set`` and unwrap singletons and return
+
+    .. todo::
+
+        TEST ME!!!!
+
+    Parameters
+    ----------
+    a_list : of dicts
+
+    Returns
+    -------
+    dict: deduplicated dictionary
+
+    """
+
+    gathered = _gather_list_of_dicts(a_list)
+    gathered = {k:tuple(set(v)) for k, v in gathered.items()}
+
+    dupes = {}
+    for k, v in gathered.items():
+        if len(v)>1:
+            dupes[k] = v
+            gathered[k] = v
+        else:
+            gathered[k] = v[0]
+
+    if raise_on_dupes and len(dupes)>0:
+        dup_str = '\n'.join([f"{k}: {v}" for k, v in dupes.items()])
+        raise Exception('Duplicates detected for keys, with values:'+dup_str)
+
+    return gathered
+
+class AmbiguityError(Exception):
+    pass
+
+
+
+
