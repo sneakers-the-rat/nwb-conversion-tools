@@ -273,7 +273,7 @@ def _gather_list_of_dicts(a_list:list) -> typing.Dict[str, list]:
 
     return out_dict
 
-def _dedupe_list_of_dicts(a_list, raise_on_dupes=True):
+def _recursive_dedupe_dicts(a_dict, raise_on_dupes=True):
     """
     Deduplicate a list of dicts.
 
@@ -286,7 +286,7 @@ def _dedupe_list_of_dicts(a_list, raise_on_dupes=True):
 
     Parameters
     ----------
-    a_list : of dicts
+    a_dict : of dicts
 
     Returns
     -------
@@ -294,16 +294,22 @@ def _dedupe_list_of_dicts(a_list, raise_on_dupes=True):
 
     """
 
-    gathered = _gather_list_of_dicts(a_list)
-    gathered = {k:tuple(set(v)) for k, v in gathered.items()}
+    gathered = {k:tuple(set(v)) for k, v in a_dict.items()}
+    gathered = {}
 
     dupes = {}
-    for k, v in gathered.items():
-        if len(v)>1:
-            dupes[k] = v
-            gathered[k] = v
+    for k, v in a_dict.items():
+        if isinstance(v, dict):
+            gathered[k] = _recursive_dedupe_dicts(v)
+        elif isinstance(v, (tuple, list)):
+            v = tuple(set(v))
+            if len(v)>1:
+                dupes[k] = v
+                gathered[k] = v
+            else:
+                gathered[k] = v[0]
         else:
-            gathered[k] = v[0]
+            gathered[k] = v
 
     if raise_on_dupes and len(dupes)>0:
         dup_str = '\n'.join([f"{k}: {v}" for k, v in dupes.items()])

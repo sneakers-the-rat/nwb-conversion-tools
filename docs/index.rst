@@ -39,6 +39,7 @@ With thiis package, users can:
 
     NWBConverter <api/nwbconverter>
     Interfaces <api/interfaces>
+    Spec <api/spec>
 
 
 For more information regarding the NWB Standard, please view

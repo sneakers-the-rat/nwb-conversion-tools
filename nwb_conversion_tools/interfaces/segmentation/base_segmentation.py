@@ -14,6 +14,8 @@ from nwb_conversion_tools.json_schema_utils import get_schema_from_method_signat
 class BaseSegmentationExtractorInterface(BaseDataInterface, ABC):
     SegX = None
 
+    interface_type = 'segmentation'
+
     @classmethod
     def get_source_schema(cls):
         return get_schema_from_method_signature(cls.SegX.__init__)

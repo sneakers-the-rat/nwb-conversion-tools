@@ -47,6 +47,8 @@ def list_interfaces(interface_type: typing.Optional[str] = None,
     _recursive_import(import_module)
     subclasses = _recurse_subclasses(BaseDataInterface)
 
+    if interface_type is not None:
+        subclasses = [interface for interface in subclasses if interface.interface_type == interface_type]
 
     if device_name is not None:
         # do a super ugly iteration through subclasses to find one with a matching device_name

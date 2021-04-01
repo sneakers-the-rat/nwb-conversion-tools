@@ -18,6 +18,8 @@ PathType = Union[str, Path, None]
 class BaseRecordingExtractorInterface(BaseDataInterface, ABC):
     """Primary class for all RecordingExtractorInterfaces."""
 
+    interface_type = 'recording'
+
     RX = None
 
     @classmethod

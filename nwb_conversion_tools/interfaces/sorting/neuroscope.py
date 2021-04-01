@@ -20,5 +20,5 @@ class NeuroscopeSortingInterface(BaseSortingExtractorInterface):
         metadata = NeuroscopeRecordingInterface.get_ecephys_metadata(
             xml_file_path=str((session_path / f"{session_id}.xml").absolute())
         )
-        metadata.update(UnitProperties=[])
+        #metadata.update(UnitProperties=[])
         return metadata

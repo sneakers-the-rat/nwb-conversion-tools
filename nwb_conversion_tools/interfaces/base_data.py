@@ -8,6 +8,14 @@ from nwb_conversion_tools.json_schema_utils import (
 
 class BaseDataInterface(ABC):
 
+    interface_type = '' # type: str
+    """
+    A category of interface, like recording, segmentation, sorting, etc. 
+    
+    Typically corresponds to the inheritance/module structure of the interface class
+    (eg. 'recording' objects inherit from :class:`.BaseRecordingExtractorInterface`)
+    """
+
     device_name = '' # type: str
     """
     A human-readable device name used by :func:`.interfaces.list_interfaces` to

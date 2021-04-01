@@ -94,7 +94,7 @@ class BaseExternalFileSpec(BaseSpec):
             sub_select = loaded_file[self.field]
         return sub_select
 
-    def _parse(self, base_path:Path) -> dict:
+    def _parse(self, base_path:Path, metadata:typing.Optional[dict]=None) -> dict:
         # get abs path
         base_path = Path(base_path).absolute()
         file_path = (base_path / self.path).absolute()

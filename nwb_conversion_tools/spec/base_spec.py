@@ -22,26 +22,35 @@ class BaseSpec(ABC):
 
         self.retype = retype
 
-    def parse(self, base_path:Path) -> dict:
+    def parse(self, base_path:Path, metadata:typing.Optional[dict]=None) -> dict:
         """
         Parse all parameters from self and child :meth:`._parse` methods,
         combining into single dictionary
+
+        Parameters
+        ----------
+        base_path: Path
+            The base path we compute the spec'd value from!
+        metadata: dict
+            other metadata used by the parsing function, usually passed in :meth:`.NWBConverter.run_conversion`
 
         Returns
         -------
 
         """
-        out = self._parse(base_path)
+        if metadata is None:
+            metadata = {}
+        out = self._parse(base_path, metadata)
 
         if self._child is not None:
             for child in self.children():
-                out = dict_deep_update(out, child._parse())
+                out = dict_deep_update(out, child._parse(base_path, metadata))
 
         return out
 
 
     @abstractmethod
-    def _parse(self, base_path=None)      -> dict:
+    def _parse(self, base_path=None, metadata:typing.Optional[dict]=None)      -> dict:
         """
         All Specs should instantiate a _parse method that returns a dictionary of
         metadata variable keys and values. eg::

@@ -14,6 +14,8 @@ from nwb_conversion_tools.json_schema_utils import get_base_schema, get_schema_f
 class BaseSortingExtractorInterface(BaseDataInterface, ABC):
     SX = None
 
+    interface_type = 'sorting'
+
     @classmethod
     def get_source_schema(cls):
         return get_schema_from_method_signature(cls.SX.__init__)

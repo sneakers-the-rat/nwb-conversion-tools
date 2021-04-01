@@ -117,6 +117,7 @@ class NWBConverter:
         specified = list(kwargs.keys())
         if spec is not None:
             specified.extend(spec.specifies)
+
         if len(set(required) - set(specified)) != 0:
             raise ValueError(f"Not all required parameters are specified,\nRequired:{required}\nSpecified:{specified}")
 
@@ -244,8 +245,13 @@ class NWBConverter:
         """Auto-fill as much of the metadata as possible. Must comply with metadata schema."""
         metadata = get_default_nwbfile_metadata()
         for interface in self.data_interface_objects.values():
-            interface_metadata = interface.get_metadata()
-            metadata = dict_deep_update(metadata, interface_metadata)
+            if isinstance(interface, list):
+                for subinterface in interface:
+                    interface_metadata = subinterface.get_metadata()
+                    metadata = dict_deep_update(metadata, interface_metadata)
+            else:
+                interface_metadata = interface.get_metadata()
+                metadata = dict_deep_update(metadata, interface_metadata)
         return metadata
 
     def run_conversion(
@@ -290,6 +296,18 @@ class NWBConverter:
         else:
             base_dir = self.base_dir
 
+
+        # start parsing the specified metadata
+        # we'll finish after we instantiate devices, but we need some metadata to specify the devices!
+        if metadata is None:
+            metadata = self.metadata
+
+        # then from parsing our metadata spec
+        for metadata_spec in self._metadata_spec:
+            metadata = dict_deep_update(metadata, metadata_spec.parse(base_dir))
+        # and finally static kwargs
+        metadata = dict_deep_update(metadata, self._static_metadata)
+
         # instantiate all our devices with their specs!
         for (interface_type, device_name), full_interface_specs in self._spec.items():
             # for each specific type of interface, _spec holds a list of full specification dictionaries
@@ -300,7 +318,7 @@ class NWBConverter:
                 device_spec = full_interface_spec['spec']
                 device_class_name = type(device_class).__name__
                 if device_spec is not None:
-                    device_kwargs = dict_deep_update(device_kwargs, device_spec.parse(base_dir))
+                    device_kwargs = dict_deep_update(device_kwargs, device_spec.parse(base_dir, metadata))
 
                 interface_instance = device_class(**device_kwargs)
 
@@ -312,17 +330,10 @@ class NWBConverter:
                 else:
                     self.data_interface_objects[device_class_name] = [interface_instance]
 
-        # parse metadata
-        if metadata is None:
-            metadata = self.metadata
 
         # get metadata from all devices and stuff
         metadata = dict_deep_update(metadata, self.get_metadata())
-        # then from parsing our metadata spec
-        for metadata_spec in self._metadata_spec:
-            metadata = dict_deep_update(metadata, metadata_spec.parse(base_dir))
-        # and finally static kwargs
-        metadata = dict_deep_update(metadata, self._static_metadata)
+
 
         if nwbfile_path is not None:
 
@@ -349,7 +360,7 @@ class NWBConverter:
         else:
             if nwbfile is None:
                 nwbfile = make_nwbfile_from_metadata(metadata=metadata)
-                
+
             for interface_name, data_interface in self.data_interface_objects.items():
                 if isinstance(data_interface, list):
                     for an_interface in data_interface:

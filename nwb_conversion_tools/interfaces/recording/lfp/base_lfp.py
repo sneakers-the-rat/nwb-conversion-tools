@@ -8,6 +8,8 @@ from nwb_conversion_tools.interfaces.recording.base_recording import BaseRecordi
 class BaseLFPExtractorInterface(BaseRecordingExtractorInterface):
     """Primary class for all LFP data interfaces."""
 
+    interface_type = 'lfp'
+
     def get_metadata(self):
         metadata = dict(
             Ecephys=dict(

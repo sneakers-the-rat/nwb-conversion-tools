@@ -4,7 +4,7 @@ import re
 import sys
 
 from nwb_conversion_tools.spec import BaseSpec
-from nwb_conversion_tools.utils import _dedupe_list_of_dicts, AmbiguityError
+from nwb_conversion_tools.utils import _recursive_dedupe_dicts, _gather_list_of_dicts, AmbiguityError
 from pathlib import Path as plPath
 from threading import Lock
 import parse
@@ -76,7 +76,8 @@ class Path(BaseSpec):
         return results
 
 
-    def _parse(self, base_path:typing.Union[str, plPath]) -> dict:
+    def _parse(self, base_path:typing.Union[str, plPath],
+               metadata:typing.Optional[dict]=None) -> dict:
         """
         Parse metadata stored in some path name relative to
          using the parser created by :attr:`.format`.
@@ -100,7 +101,8 @@ class Path(BaseSpec):
 
         # check for dupes!!
         try:
-            results = _dedupe_list_of_dicts(results, raise_on_dupes=True)
+            gathered = _gather_list_of_dicts(results)
+            results = _recursive_dedupe_dicts(gathered, raise_on_dupes=True)
         except AmbiguityError as e:
             # reraise error with additional informative message about what else to use
             raise type(e)(
@@ -116,4 +118,74 @@ class Paths(Path):
 
     def _parse(self, base_path: typing.Union[str, plPath]) -> dict:
         results = self._parse_dir(base_path)
+
+        gathered = _gather_list_of_dicts(a_list)
         return _dedupe_list_of_dicts(results, raise_on_dupes=False)
+
+class Glob(BaseSpec):
+    """
+    Sort of the opposite of :class:`.Path` -- specify some path given some metadata values
+
+    Replaces any named format variables in `{brackets}`, and then globs any `'*'`s
+    """
+
+    def __init__(self, key:str,format:str, *args, **kwargs):
+        super(Glob, self).__init__(*args, **kwargs)
+        self.key = key
+        self.format = str(format)
+
+    @property
+    def _specifies(self) -> typing.Tuple[str, ...]:
+        return (self.key,)
+
+    def _parse(self,
+               base_path:typing.Union[str, plPath],
+               metadata:typing.Optional[dict]=None) -> dict:
+        """
+        Find a path by first replacing `{format_strings}` with variables from the passed metadata dict
+        and then globbing over any `'*'`
+
+        This class ensures a single path is returned, and raises an :class:`.AmbiguityError` otherwise.
+        To return multiple paths, use :class:`.Globs`
+
+        Parameters
+        ----------
+        base_path :
+        metadata :
+
+        Returns
+        -------
+
+        """
+
+        # replace format string
+        try:
+            format_str = self.format.format(**metadata)
+        except KeyError as e:
+            # reraise error with additional informative message about what else to use
+            raise type(e)(
+                str(e) + '\nField not found in metadata, did you add it with `add_metadata`?'
+            ).with_traceback(sys.exc_info()[2])
+
+        # add to base_path
+        full_path = plPath(base_path).absolute() / format_str
+
+        # glob us some matching files if it's got an asterisk
+        if '*' in str(full_path):
+            paths = glob.glob(str(full_path))
+            if len(paths)>1:
+                raise AmbiguityError(f'Multiple paths matched glob string: {str(full_path)},\nif this was intentional, use Globs instead!')
+            elif len(paths)<0:
+                raise FileNotFoundError(f'No file was found matching query string {str(full_path)}')
+
+            path = paths[0]
+
+        else:
+            path = str(full_path)
+
+        return {self.key: path}
+
+
+
+
+
