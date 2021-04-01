@@ -23,7 +23,7 @@ class BaseExternalFileSpec(BaseSpec):
         Parameters
         ----------
         self :
-        path : path relative to base_dir that is passed in :meth:`.parse`
+        path : path relative to base_dir that is passed in :meth:`._parse`
         key :
         field :
         cache : bool
@@ -64,7 +64,7 @@ class BaseExternalFileSpec(BaseSpec):
         pass
 
     @property
-    def specifies(self):
+    def _specifies(self):
         return tuple(self.key)
 
     def _sub_select(self, loaded_file:dict) -> typing.Any:
@@ -94,7 +94,7 @@ class BaseExternalFileSpec(BaseSpec):
             sub_select = loaded_file[self.field]
         return sub_select
 
-    def parse(self, base_path:Path) -> dict:
+    def _parse(self, base_path:Path) -> dict:
         # get abs path
         base_path = Path(base_path).absolute()
         file_path = (base_path / self.path).absolute()

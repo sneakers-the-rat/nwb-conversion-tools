@@ -22,7 +22,7 @@ class Path(BaseSpec):
     Additional options like specifying a format for the values, etc. can be
     found in the parse documentation.
 
-    Raises an exception if multiple matching values are found in :meth:`.Path.parse` ,
+    Raises an exception if multiple matching values are found in :meth:`.Path._parse` ,
     this is the singular version, and if there are multiple matches that means it's mis-specified
     To allow multiple matches, try :class:`.Paths`
 
@@ -44,12 +44,12 @@ class Path(BaseSpec):
             raise ValueError('format string must use named fields, not anonymous fields like {}')
 
     @property
-    def specifies(self) -> typing.Tuple[str,...]:
+    def _specifies(self) -> typing.Tuple[str, ...]:
         return tuple(self.parser.named_fields)
 
     def _parse_dir(self, base_path:typing.Union[str, plPath]) -> list:
         """
-        First part of :meth:`.Path.parse` , given a base directory and parser,
+        First part of :meth:`.Path._parse` , given a base directory and parser,
         return a list of dicts of matching keys found.
         """
         # make absolute
@@ -76,7 +76,7 @@ class Path(BaseSpec):
         return results
 
 
-    def parse(self, base_path:typing.Union[str, plPath]) -> dict:
+    def _parse(self, base_path:typing.Union[str, plPath]) -> dict:
         """
         Parse metadata stored in some path name relative to
          using the parser created by :attr:`.format`.
@@ -90,7 +90,7 @@ class Path(BaseSpec):
         Parameters
         ----------
         base_path : :class:`pathlib.Path`
-            Path to parse!!!
+            Path to _parse!!!
 
         Returns
         -------
@@ -114,6 +114,6 @@ class Paths(Path):
     Like :class:`.spec.Path` but allows multiple values for a single key
     """
 
-    def parse(self, base_path: typing.Union[str, plPath]) -> dict:
+    def _parse(self, base_path: typing.Union[str, plPath]) -> dict:
         results = self._parse_dir(base_path)
         return _dedupe_list_of_dicts(results, raise_on_dupes=False)

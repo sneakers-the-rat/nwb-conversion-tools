@@ -8,8 +8,8 @@ def parse_nested_spec(spec, base_dir):
     for key, value in spec.items():
         if isinstance(value, dict):
             out_dict[key].update(parse_nested_spec(value, base_dir))
-        elif issubclass(value, BaseSpec):
-            out_dict[key] = value.parse(base_dir)
+        elif issubclass(type(value), BaseSpec):
+            out_dict[key] = value._parse(base_dir)
         else:
             out_dict[key] = value
 

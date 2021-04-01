@@ -45,8 +45,15 @@ class NWBConverter:
         # init private attributes
         self._metadata = None
         self._dataset_schema = {}
-        self._spec = {} # type: typing.Dict[tuple, typing.Tuple[BaseSpec, ...]]
-        self._metadata_spec = {}
+        self._spec = {} # type: typing.Dict[tuple, typing.List[typing.Dict, ...]]
+        self._metadata_spec = []
+        """
+        metadata spec objects that parse & return keys and values of metadata rather than represent them directly
+        """
+        self._static_metadata = {}
+        """
+        stores static metadata given to :meth:`.add_metadata`
+        """
 
         # preserve old behavior on init
         if source_data is not None:
@@ -62,7 +69,8 @@ class NWBConverter:
 
     def add_interface(self, interface_type:Optional[str] = None,
                       device_name: Optional[str] = None,
-                      *args):
+                      spec: Optional[BaseSpec] = None,
+                      **kwargs):
         """
         Add a recording interface
 
@@ -77,6 +85,8 @@ class NWBConverter:
             Type of interface, like 'recording' -- a name of a package in :mod:`~nwb_conversion_tools.interfaces`
         device_name : str
             Name of specific interface, matching the interfaces :attr:`~.interfaces.BaseDataInterface.device_name`
+        spec : BaseSpec
+            Metadata specifier to parameterize interface object
         kwargs :
             kwargs passed to data interface.
         """
@@ -96,61 +106,60 @@ class NWBConverter:
         required = source_schema['required']
 
         # if length of args is zero, assume user is asking for advice on what the heck to do :)
-        if len(args) == 0:
+        if len(kwargs) == 0 and spec is None:
             header_str = f'Source Schema for {type(interface).__name__}'
             divider_bar = '-'*len(header_str)
             print('\n'.join((header_str, divider_bar, pformat(source_schema), divider_bar)))
             return
 
-        # otherwise ensure passed specs parameterize all required args
-        specs = (arg for arg in args if issubclass(arg, BaseSpec))
-        specified = []
-        for spec in specs:
-            specified.extend(spec.specifies)
-
         # check that we have everything with sets
+        # combine parameters specified by spec objects and given in kwargs
+        specified = list(kwargs.keys())
+        if spec is not None:
+            specified.extend(spec.specifies)
         if len(set(required) - set(specified)) != 0:
             raise ValueError(f"Not all required parameters are specified,\nRequired:{required}\nSpecified:{specified}")
 
         self.data_interface_classes[type(interface).__name__] = interface
         spec_key = (interface_type, device_name)
+        # prepare dict for storage
+        full_spec = {
+            'interface': interface,
+            'spec': spec,
+            'kwargs': dict(kwargs)
+        }
+
         if spec_key not in self._spec.keys():
-            self._spec[spec_key] = [specs]
+            self._spec[spec_key] = [full_spec]
         else:
-            self._spec[spec_key].append(specs)
+            self._spec[spec_key].append(full_spec)
 
     def add_metadata(self,
-        key:typing.Union[str, typing.Tuple[str,...]],
         spec:typing.Union[BaseSpec, str]):
         """
 
         Parameters
         ----------
-        key : str, tuple
+        spec : BaseSpec, dict
+            if an object that inherits from :class:`.BaseSpec`, then the keys and values of metadata
+            are resolved by the object: ie. the keys are the value of :attr:`.BaseSpec.specifies` and
+            :meth:`.BaseSpec.parse` returns a dictionary of keys and values.
+
+            if dictionary, assumes static metadata (unchanged across multiple sessions/experiments)
+            otherwise, use spec to resolve
             Either a string representing a "top-level" metadata property, or a tuple of nested metadata
             properties like ('NWBFile', 'experimenter')
-        spec : BaseSpec, str
-            if str, assumes static metadata (unchanged across multiple sessions/experiments)
-            otherwise, use spec to resolve
 
         Returns
         -------
 
         """
-        if isinstance(key, str):
-            self._metadata_spec[key] = spec
-        elif isinstance(key, (tuple, list)) and len(key) == 1:
-            self._metadata_spec[key[0]] = spec
+        if isinstance(spec, dict):
+            self._static_metadata = dict_deep_update(self._static_metadata, spec)
+        elif issubclass(type(spec), BaseSpec):
+            self._metadata_spec.append(spec)
         else:
-            # add spec to nested dict
-            sub_dict = self._metadata_spec
-            for i, sub_key in enumerate(key):
-                if i < len(key)-1:
-                    if sub_key not in sub_dict.keys():
-                        sub_dict[sub_key] = {}
-                    sub_dict = sub_dict[sub_key]
-                else:
-                    sub_dict[sub_key] = spec
+            raise ValueError(f'Dont know how to handle metadata, needs to be a dictionary of static metadata or a Spec object. got {spec}')
 
 
 
@@ -282,13 +291,26 @@ class NWBConverter:
             base_dir = self.base_dir
 
         # instantiate all our devices with their specs!
-        for (interface_type, device_name), interface_spec in self._spec.items():
-            device_class = list_interfaces(interface_type, device_name)
-            device_kwargs = {}
-            for a_spec in interface_spec:
-                device_kwargs.update(a_spec.parse(base_dir))
+        for (interface_type, device_name), full_interface_specs in self._spec.items():
+            # for each specific type of interface, _spec holds a list of full specification dictionaries
+            # with 'interface', 'spec', and 'kwargs' (see add_interface)
+            for full_interface_spec in full_interface_specs:
+                device_class = full_interface_spec['interface']
+                device_kwargs = full_interface_spec['kwargs']
+                device_spec = full_interface_spec['spec']
+                device_class_name = type(device_class).__name__
+                if device_spec is not None:
+                    device_kwargs = dict_deep_update(device_kwargs, device_spec.parse(base_dir))
 
-            self.data_interface_objects[type(device_class).__name__] = device_class(**device_kwargs)
+                interface_instance = device_class(**device_kwargs)
+
+                # add to dict of interfaces. If one already exists, make sure it's a list and append to it
+                if device_class_name in self.data_interface_objects.keys():
+                    if not isinstance(self.data_interface_objects[device_class_name], list):
+                        self.data_interface_objects[device_class_name] = list(self.data_interface_objects[device_class_name])
+                    self.data_interface_objects[device_class_name].append(interface_instance)
+                else:
+                    self.data_interface_objects[device_class_name] = [interface_instance]
 
         # parse metadata
         if metadata is None:
@@ -297,7 +319,10 @@ class NWBConverter:
         # get metadata from all devices and stuff
         metadata = dict_deep_update(metadata, self.get_metadata())
         # then from parsing our metadata spec
-        metadata = dict_deep_update(metadata, parse_nested_spec(self._metadata_spec, base_dir))
+        for metadata_spec in self._metadata_spec:
+            metadata = dict_deep_update(metadata, metadata_spec.parse(base_dir))
+        # and finally static kwargs
+        metadata = dict_deep_update(metadata, self._static_metadata)
 
         if nwbfile_path is not None:
 
@@ -313,14 +338,23 @@ class NWBConverter:
                     nwbfile = make_nwbfile_from_metadata(metadata=metadata)
 
                 for interface_name, data_interface in self.data_interface_objects.items():
-                    data_interface.run_conversion(nwbfile, metadata, **conversion_options.get(interface_name, dict()))
+                    if isinstance(data_interface, list):
+                        for an_interface in data_interface:
+                            an_interface.run_conversion(nwbfile, metadata, **conversion_options.get(interface_name, dict()))
+                    else:
+                        data_interface.run_conversion(nwbfile, metadata, **conversion_options.get(interface_name, dict()))
 
                 io.write(nwbfile)
             print(f"NWB file saved at {nwbfile_path}!")
         else:
             if nwbfile is None:
                 nwbfile = make_nwbfile_from_metadata(metadata=metadata)
+                
             for interface_name, data_interface in self.data_interface_objects.items():
-                data_interface.run_conversion(nwbfile, metadata, **conversion_options.get(interface_name, dict()))
+                if isinstance(data_interface, list):
+                    for an_interface in data_interface:
+                        an_interface.run_conversion(nwbfile, metadata, **conversion_options.get(interface_name, dict()))
+                else:
+                    data_interface.run_conversion(nwbfile, metadata, **conversion_options.get(interface_name, dict()))
 
         return nwbfile
