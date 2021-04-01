@@ -5,13 +5,16 @@ import typing
 from pathlib import Path
 from abc import abstractmethod
 import json
+import numpy as np
+
+from scipy.io import loadmat
+import yaml
 
 from nwb_conversion_tools.spec import BaseSpec
 
 class BaseExternalFileSpec(BaseSpec):
 
     loaded_files = {}
-
 
     def __init__(self, path:Path,
                  key: str,
@@ -133,7 +136,32 @@ class JSON(BaseExternalFileSpec):
         return loaded
 
 class Mat(BaseExternalFileSpec):
-    pass
+
+    def _sub_select(self, loaded_file:dict) -> typing.Any:
+        """
+        Calls :meth:`.BaseExternalFileSpec._sub_select`, but then
+        unstacks all `len == 1` numpy arrays so that the
+        `field` arg can be like `('sessionInfo', 'session')`
+        rather than `('sessionInfo', 'session', 0, 0, 0, 0, 0, 0)`
+
+        Parameters
+        ----------
+        loaded_file :
+
+        Returns
+        -------
+
+        """
+        sub_select = super(Mat, self)._sub_select(loaded_file)
+        while isinstance(sub_select, np.ndarray) and np.max(sub_select.shape) == 1:
+            sub_select = sub_select[0]
+
+        return sub_select
+
+    def _load_file(self, path:Path) -> dict:
+        return loadmat(file_name=str(path))
 
 class YAML(BaseExternalFileSpec):
-    pass
+    def _load_file(self, path:Path) -> dict:
+        with open(path, 'r') as yfile:
+            return yaml.load(yfile)

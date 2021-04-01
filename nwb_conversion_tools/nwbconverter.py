@@ -5,6 +5,7 @@ import typing
 from typing import Optional
 import warnings
 from pprint import pformat
+import json
 
 from pynwb import NWBHDF5IO, NWBFile
 from pynwb.file import Subject
@@ -15,7 +16,7 @@ from .json_schema_utils import dict_deep_update, get_base_schema, fill_defaults,
     unroot_schema
 
 from nwb_conversion_tools.interfaces import BaseDataInterface, list_interfaces
-from nwb_conversion_tools.spec import BaseSpec, parse_nested_spec
+from nwb_conversion_tools.spec import BaseSpec, parse_nested_spec, from_dict
 
 
 class NWBConverter:
@@ -24,18 +25,21 @@ class NWBConverter:
     """
 
 
-    def __init__(self, base_dir:Path, source_data: Optional[dict] = None):
+    def __init__(self, base_dir:Optional[Path]=None, source_data: Optional[dict] = None):
         """
 
         Parameters
         ----------
         base_dir : :class:`pathlib.Path`
-            The base directory of the source data, from which all paths are relative
+            The base directory of the source data, from which all paths are relative.
+            If not provided at initialization, must be provided when calling :meth:`.run_conversion`
         source_data: dict
             Old style source_data dictionary, kept for compatibility
         """
-
-        self.base_dir = Path(base_dir)
+        if base_dir is not None:
+            self.base_dir = Path(base_dir)
+        else:
+            self.base_dir = base_dir
 
         # preserve compatibility with class-attribute style declaration
         if not hasattr(self, 'data_interface_classes'):
@@ -314,7 +318,7 @@ class NWBConverter:
             # with 'interface', 'spec', and 'kwargs' (see add_interface)
             for full_interface_spec in full_interface_specs:
                 device_class = full_interface_spec['interface']
-                device_kwargs = full_interface_spec['kwargs']
+                device_kwargs = full_interface_spec['kwargs'].copy()
                 device_spec = full_interface_spec['spec']
                 device_class_name = type(device_class).__name__
                 if device_spec is not None:
@@ -369,3 +373,121 @@ class NWBConverter:
                     data_interface.run_conversion(nwbfile, metadata, **conversion_options.get(interface_name, dict()))
 
         return nwbfile
+
+    def convert_many(self, expt_paths: list, out_fns: list = None, *args, **kwargs):
+        for i, expt_path in enumerate(expt_paths):
+            if out_fns is None:
+                out_fn = Path(expt_path).parent / Path(expt_path).with_suffix('.nwb')
+            else:
+                out_fn = out_fns[i]
+
+            print(f'Converting {expt_path}, saving as {out_fn}')
+            self.run_conversion(base_dir=expt_path, nwbfile_path = out_fn, *args, **kwargs)
+
+    def to_json(self, output_path:typing.Optional[typing.Union[str, Path]] = None,
+                mode:str='w') -> dict:
+        """
+        Save the converter parameterization from :meth:`.add_metadata` and :meth:`.add_interface`
+        to a .json file, for use with :meth:`.from_json` to recreate conversion objects :)
+
+        Parameters
+        ----------
+        output_path : str, pathlib.Path
+            Path to write .json file to. if ``None``, don't save, just return dict.
+        mode : str
+            Write mode, default: 'w'
+
+        Returns
+        ---------
+        dict created and saved
+        """
+
+        # gather up the interfaces!
+        interfaces = []
+        for (interface_type, device_name), interface_specs in self._spec.items():
+            for interface_spec in interface_specs:
+                spec_obj = None
+                if interface_spec['spec'] is not None:
+                    spec_obj = interface_spec['spec'].to_dict()
+                interfaces.append({
+                    'interface_type': interface_type,
+                    'device_name': device_name,
+                    'spec': spec_obj,
+                    'kwargs': interface_spec['kwargs']
+                })
+
+        # gather up the metadata!
+        metadata_spec = [md_spec.to_dict() for md_spec in self._metadata_spec]
+
+        # combine it all!
+        out_dict = {
+            'interfaces': interfaces,
+            'static_metadata': self._static_metadata,
+            'metadata_spec': metadata_spec
+        }
+
+        if output_path is not None:
+            with open(output_path, mode=mode) as jfile:
+                json.dump(out_dict, jfile, indent=4, separators=(',', ': '), sort_keys=True)
+            print(f'Converter parameterization saved to {output_path}')
+
+        return out_dict
+
+    @classmethod
+    def from_json(cls, json_path: typing.Union[str, Path, dict],
+                  hook: Optional[typing.Callable] = None,
+                  base_dir:Optional[typing.Union[str, Path]]=None) -> 'NWBConverter':
+        """
+        Reconstitute a parameterized converter from a json file created by :meth:`.NWBConverter.to_json`
+
+        Parameters
+        ----------
+        json_path : str, pathlib.Path, dict
+            Path to the .json file, or else the already-loaded dict
+        hook : callable
+            Optional callable to use with json.load's ``object_hook``
+        base_dir : str, pathlib.Path
+            Optional, instantiate the converter with a ``base_path``
+
+        Returns
+        -------
+        Reconstituted Converter!
+        """
+        if isinstance(json_path, (str, Path)):
+            with open(json_path, 'r') as jfile:
+                params = json.load(jfile, object_hook=hook)
+        elif isinstance(json_path, dict):
+            params = dict
+        else:
+            raise TypeError(f"Not sure how to reconstitute from {json_path}, give me a .json file or a dict!")
+
+        converter = cls(base_dir=base_dir)
+
+        # do metadata first :)
+        for metadata_spec in params['metadata_spec']:
+            converter.add_metadata(from_dict(spec_dict=metadata_spec))
+
+        converter.add_metadata(params['static_metadata'])
+
+        # then add our interfaces!!
+        for interface in params['interfaces']:
+            if interface['spec'] is not None:
+                spec = from_dict(interface['spec'])
+            else:
+                spec = None
+            converter.add_interface(
+                interface_type=interface['interface_type'],
+                device_name=interface['device_name'],
+                spec=spec,
+                **interface['kwargs']
+            )
+
+        return converter
+
+
+
+
+
+
+
+

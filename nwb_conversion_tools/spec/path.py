@@ -71,7 +71,7 @@ class Path(BaseSpec):
                 results.append(parsed.named)
 
         if len(results) == 0:
-            raise ValueError(f'No matches were found between \n(relative) format:\n{self.format}\nin\n{base_path}')
+            raise ValueError(f'No matches were found between \n(relative) format:\n{self.format}\nglob string:{format_glob}\nin\n{base_path}')
 
         return results
 

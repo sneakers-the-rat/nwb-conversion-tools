@@ -1,12 +1,15 @@
 from abc import abstractmethod, ABC
 import typing
+import pdb
 import gc
 import types
+import inspect
+import importlib
 from pathlib import Path
 from nwb_conversion_tools.json_schema_utils import dict_deep_update
+from nwb_conversion_tools.utils import IntrospectionMixin
 
-
-class BaseSpec(ABC):
+class BaseSpec(ABC, IntrospectionMixin):
     def __init__(self, retype: typing.Optional[typing.Callable] = None, *args, **kwargs):
         """
 
@@ -21,6 +24,8 @@ class BaseSpec(ABC):
 
 
         self.retype = retype
+
+        self._init_args = self._get_init_args()
 
     def parse(self, base_path:Path, metadata:typing.Optional[dict]=None) -> dict:
         """
@@ -136,6 +141,71 @@ class BaseSpec(ABC):
             self._child = self._child + other
 
         return self
+
+    def to_dict(self) -> dict:
+        """
+        Get a dictionary description of this spec object, of the form::
+
+            {
+                'module': self.__module__,
+                'class': type(self).__name__,
+                'kwargs': self._init_args,
+                'children': [ ... same structure as top-level without children list ...]
+            }
+
+        That allows a spec to be reconstituted with :meth:`.from_dict`
+
+        Returns
+        -------
+        dict of initialization parameters, as described above
+        """
+
+        out_dict = {
+            'module': self.__module__,
+            'class' : type(self).__name__,
+            'kwargs': self._init_args,
+            'children': []
+        }
+
+        if self._child is not None:
+            for child in self.children():
+                out_dict['children'].append({
+                    'module': child.__module__,
+                    'class': type(child).__name__,
+                    'kwargs': child._init_args
+                })
+
+        return out_dict
+
+
+
+def from_dict(spec_dict:dict) -> BaseSpec:
+    """
+    Reconstitute a spec object from a dict created by :meth:`.BaseSpec.to_dict`
+
+    Parameters
+    ----------
+    spec_dict : dict
+        A dictionary created by :meth:`.BaseSpect.to_dict`
+
+    Returns
+    -------
+    The reconstituted spec object!
+    """
+
+    # import and instantiate!
+    spec_class = getattr(importlib.import_module(spec_dict['module']), spec_dict['class'])
+    spec_obj = spec_class(**spec_dict['kwargs'])
+
+    if len(spec_dict['children']) > 0:
+        for child_dict in spec_dict['children']:
+            child_class = getattr(importlib.import_module(child_dict['module']), child_dict['class'])
+            child_obj = child_class(**child_dict['kwargs'])
+            spec_obj += child_obj
+
+    return spec_obj
+
+
 
 
 
