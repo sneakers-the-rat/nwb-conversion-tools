@@ -6,9 +6,12 @@ from typing import Optional
 import warnings
 from pprint import pformat
 import json
+import itertools
 
 from pynwb import NWBHDF5IO, NWBFile
 from pynwb.file import Subject
+
+from tqdm import tqdm
 
 from .conversion_tools import get_default_nwbfile_metadata, make_nwbfile_from_metadata
 from .utils import get_schema_from_hdmf_class, get_schema_for_NWBFile
@@ -484,6 +487,70 @@ class NWBConverter:
 
         return converter
 
+    def hail_mary(self, base_dir:Optional[Path]=None,
+                  interface_type:Optional[str]=None
+                  ):
+        """
+        Just try every interface on every file and see what instantiates.
+
+        Parameters
+        ----------
+        base_dir : directory to peruse. if none, then the base_dir provided on init is used.
+        interface_type : if provided, only try interfaces of this type
+
+        Returns
+        -------
+        tuple of::
+
+            (interface object,
+            path (relative to base_dir),
+            parameter key that was used,
+            and the instantiated object itself)
+        """
+        if base_dir is None:
+            if self.base_dir is None:
+                raise ValueError("No base_dir passed, and none give on instantiation. Need to know where to go!")
+            else:
+                base_dir = self.base_dir
+        else:
+            base_dir = Path(base_dir)
+
+        interfaces = list_interfaces(interface_type)
+
+        # create iterator to go over all files and interfaces...
+        all_paths  = itertools.chain((base_dir,),base_dir.glob("**/[!\.]*"))
+        everything = itertools.product(interfaces, all_paths)
+
+        # ----------------------------------------------------------------------- #
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+        #                                                                         #
+        #                             _|_|                          _|    _|      #
+        #   _|_|_|    _|_|          _|        _|_|    _|  _|_|          _|_|_|_|  #
+        # _|    _|  _|    _|      _|_|_|_|  _|    _|  _|_|          _|    _|      #
+        # _|    _|  _|    _|        _|      _|    _|  _|            _|    _|      #
+        #   _|_|_|    _|_|          _|        _|_|    _|            _|      _|_|  #
+        #       _|                                                                #
+        #   _|_|                                                                  #
+        #                 w h a t   i f   i t   w o r k s   ? ? ?                 #
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+        # ----------------------------------------------------------------------- #
+        hits = []
+        hit_bar = tqdm(position=1, desc="Hits")
+        for interface, path in tqdm(everything, position=0):
+            for req_param in interface.get_source_schema().get('required', []):
+                try:
+                    instance = interface(**{req_param:str(path)})
+                    hits.append((interface, path.relative_to(base_dir), req_param, instance))
+                    hit_bar.update()
+                except:
+                    # print(e, interface, req_param, str(path))
+                    pass
+
+        emotion = ":)" if len(hits)>0 else ":("
+        hit_string = "\n".join([f"{interf.interface_type}, {interf.device_name}, {req_param}, {path}" for interf, path, req_param, _ in hits])
+
+        print(f'Found {len(hits)} hits {emotion}\n\n' + hit_string)
+        return hits
 
 
 
