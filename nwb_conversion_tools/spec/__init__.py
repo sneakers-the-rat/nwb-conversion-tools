@@ -1,6 +1,6 @@
 from nwb_conversion_tools.spec.base_spec import BaseSpec, from_dict
 from nwb_conversion_tools.spec.path import Path, Paths, Glob
-from nwb_conversion_tools.spec.external_file import JSON
+from nwb_conversion_tools.spec.external_file import JSON, Mat
 
 
 def parse_nested_spec(spec, base_dir):
